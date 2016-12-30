@@ -22,4 +22,10 @@ module.exports = function (grunt) {
             }
         }
     });
+
+    grunt.registerTask('default', function (target) {
+      grunt.task.run([
+        'uglify'
+      ]);
+    });
 };

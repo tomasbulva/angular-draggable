@@ -1,6 +1,6 @@
 (function () {
   angular.module('angular-draggable', [])
-    .directive('ngDraggable', ['$document', '$compile', function ($document, $compile) {
+    .directive('ngDraggable', ['$document', '$compile', '$window', function ($document, $compile, $window) {
       return {
         restrict: 'EA',
         template: '<div ng-transclude></div>',
@@ -15,9 +15,12 @@
           top: '=',
           width: '=',
           height: '=',
-	  min: '@',
+          min: '@',
           onResizeX: '&',
-          onResizeY: '&'
+          onResizeY: '&',
+          lockToScreenSize: '=',
+          sliderControlX: '=',
+          sliderControlY: '='
         },
         link: function (scope, element) {
           // valiables
@@ -25,28 +28,136 @@
           var startY = 0;
           var left = scope.left || 0;
           var top = scope.top || 0;
-	  var min = scope.min ? parseInt(scope.min) : 100;
+	        var min = scope.min ? parseInt(scope.min) : 100;
+          var w = angular.element($window);
+
+          var elHeight = null;
+
+          scope.$watch(
+            function(){
+              return element.height();
+            },
+            function(newHeight){
+              console.log('newHeight',newHeight);
+              elHeight = newHeight;
+            }
+          );
+
+
+          // = element.height();
+          var elWidth = null;
+
+          scope.$watch(
+            function(){
+              return element.width();
+            },
+            function(newWidth){
+              console.log('newWidth',newWidth);
+              elWidth = newWidth;
+            }
+          );
+
+          var wholeHeight = ( w.height() - elHeight );
+          var wholeWidth = ( w.width() - elWidth );
+
           scope.onResizeX = scope.onResizeX || angular.noop;
           scope.onResizeY = scope.onResizeY || angular.noop;
           // event handlers
           var onMouseMove = function (e) {
+
             left = e.screenX - startX;
             top = e.screenY - startY;
-            if (angular.isDefined(scope.left) && !scope.lockx) {
-              scope.left = left;
+
+            if (
+              angular.isDefined(scope.left) && !scope.lockx
+              && ( ! scope.lockToScreenSize || left > 0 )
+              && ( ! scope.lockToScreenSize || ( left + elWidth ) < w.width() )
+            ) {
+                scope.left = left;
             }
-            if (angular.isDefined(scope.top) && !scope.locky) {
-              scope.top = top;
+
+            if (
+              angular.isDefined(scope.top) && !scope.locky
+              && ( ! scope.lockToScreenSize || top > 0 )
+              && ( ! scope.lockToScreenSize || ( top + elHeight ) < w.height() )
+            ) {
+                scope.top = top;
             }
+
             scope.$apply();
 
-            if (!scope.lockx) {
+            if (
+              !scope.lockx
+              && ( ! scope.lockToScreenSize || left > 0 )
+              && ( ! scope.lockToScreenSize || ( left + elWidth ) < w.width() )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlY) ) {
+                var perc = wholeWidth / 100;
+                scope.sliderControlY = left / perc;
+              }
               element.css({left: left + 'px'});
+
+            }
+            else if (
+              !scope.lockx
+              && ( ! scope.lockToScreenSize || left < 0 )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlY) ) {
+                scope.sliderControlY = 0;
+              }
+              element.css({left: 0 + 'px'});
+
+            }
+            else if (
+              !scope.lockx
+              && ( ! scope.lockToScreenSize || ( left + elWidth ) > w.width() )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlY) ) {
+                scope.sliderControlY = 100;
+              }
+              element.css({left: (w.width()-elWidth) + 'px'});
+
             }
 
-            if (!scope.locky) {
+            if (
+              !scope.locky
+              && ( ! scope.lockToScreenSize || top > 0 )
+              && ( ! scope.lockToScreenSize || ( top + elHeight ) < w.height() )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlX) ) {
+                var perc = wholeHeight / 100;
+              }
+              scope.sliderControlX = top / perc;
               element.css({top: top + 'px'});
+
             }
+            else if (
+              !scope.locky
+              && ( ! scope.lockToScreenSize || top < 0 )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlX) ) {
+                scope.sliderControlX = 0;
+              }
+              element.css({top: 0 + 'px'});
+
+            }
+            else if (
+              !scope.locky
+              && ( ! scope.lockToScreenSize || ( top + elHeight ) > w.height() )
+            ) {
+
+              if ( angular.isDefined(scope.sliderControlX) ) {
+                scope.sliderControlX = 100;
+              }
+              element.css({top: ( w.height() - elHeight ) + 'px'});
+
+            }
+
           };
 
           var onMouseUp = function () {
@@ -99,15 +210,17 @@
               zIndex: 90, cursor: 'w-resize', width: '7px', left: '-5px', top: 0, height: '100%',
               position: 'absolute', display: 'block', touchAction: 'none'
             });
+
             // event handler
             var xHandleMouseMoveRight = function (e) {
               var diff = e.screenX - xHandleStart;
               width = +width + diff;
 
-	      // check for mimun width
-	      if (width < min) {
-	        width = min;
-	      }
+              // check for mimun width
+              if (width < min) {
+                width = min;
+              }
+
               if (angular.isDefined(scope.width)) {
                 scope.width = width;
                 scope.$apply();
@@ -123,9 +236,10 @@
 
               // check for minimum width
               if (width < min) {
-	        left = left + width - min;
-		width = min;
-	      }
+                left = left + width - min;
+                width = min;
+              }
+
               if (angular.isDefined(scope.width)) {
                 scope.width = width;
                 scope.$apply();
