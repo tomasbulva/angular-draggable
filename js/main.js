@@ -18,6 +18,7 @@
           min: '@',
           onResizeX: '&',
           onResizeY: '&',
+          onDoubleClick: '&',
           lockToScreenSize: '=',
           sliderControlX: '=',
           sliderControlY: '='
@@ -59,9 +60,11 @@
 
           var wholeHeight = ( w.height() - elHeight );
           var wholeWidth = ( w.width() - elWidth );
+          var clicks = 0;
 
           scope.onResizeX = scope.onResizeX || angular.noop;
           scope.onResizeY = scope.onResizeY || angular.noop;
+
           // event handlers
           var onMouseMove = function (e) {
 
@@ -93,8 +96,7 @@
             ) {
 
               if ( angular.isDefined(scope.sliderControlY) ) {
-                var perc = wholeWidth / 100;
-                scope.sliderControlY = left / perc;
+                scope.sliderControlY = left / (wholeWidth / 100);
               }
               element.css({left: left + 'px'});
 
@@ -129,9 +131,9 @@
             ) {
 
               if ( angular.isDefined(scope.sliderControlX) ) {
-                var perc = wholeHeight / 100;
+                scope.sliderControlX = top / (wholeHeight / 100);
               }
-              scope.sliderControlX = top / perc;
+
               element.css({top: top + 'px'});
 
             }
@@ -172,6 +174,17 @@
             startY = e.screenY - top;
             $document.on('mousemove', onMouseMove);
             $document.on('mouseup', onMouseUp);
+
+            clicks++;
+
+            setTimeout(function() {
+              clicks = 0;
+            }, 300);
+
+            if (clicks === 2) {
+              console.log('doubleClick');
+              scope.onDoubleClick();
+            }
           };
 
           // style
@@ -392,6 +405,7 @@
             $compile(yHandleBottom)(scope);
             element.append(yHandleBottom);
           }
+
         }
       };
     }]);
